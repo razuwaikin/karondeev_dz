@@ -1,0 +1,13 @@
+{
+  "charset": "printable95",
+  "length": 10,
+  "salt_hex": "73616c745f74657374",
+  "iterations": 5000,
+  "dklen": 32,
+  "batch_size": 8192,
+  "n_batches": 16,
+  "insert_target_in_batch": true,
+  "target_password": null,
+  "cpu_workers": 8,
+  "gpu_threads_per_block": 256
+}
