@@ -1,10 +1,9 @@
 import json, os, time, csv, secrets, sys
 import hashlib
 import numpy as np
-import multiprocessing
 
 CFG_FNAME = "config.json"
-OUT_CSV = "results_cpu.csv"
+OUT_CSV = "results_cpu_sequential.csv"
 
 with open(CFG_FNAME, "r") as f:
     cfg = json.load(f)
@@ -16,7 +15,6 @@ ITER = int(cfg.get("iterations", 5000))
 DKLEN = int(cfg.get("dklen", 32))
 TARGET = cfg.get("target_password", None)
 INSERT_TARGET = bool(cfg.get("insert_target_in_batch", True))
-CPU_WORKERS = int(cfg.get("cpu_workers", 8))
 
 import string
 CHARS = string.printable[:-6]
@@ -27,15 +25,12 @@ if TARGET:
     target_password = TARGET
 else:
     target_password = ''.join(secrets.choice(CHARS) for _ in range(L))
-    print("CPU: generated target:", target_password)
+    print("CPU Sequential: generated target:", target_password)
 target_hash = hashlib.pbkdf2_hmac("sha256", target_password.encode(), salt, ITER, DKLEN)
 print("Target hash hex:", target_hash.hex())
 
 def gen_candidate(length):
     return ''.join(secrets.choice(CHARS) for _ in range(length))
-
-def compute_hash(p):
-    return hashlib.pbkdf2_hmac('sha256', p.encode(), salt, ITER, DKLEN)
 
 def run():
     found = False
@@ -43,30 +38,27 @@ def run():
     timings = []
     found_info = None
 
-    with multiprocessing.Pool(processes=CPU_WORKERS) as pool:
-        for batch_idx in range(N_BATCHES):
-            batch = [gen_candidate(L) for _ in range(BATCH_SIZE)]
-            if INSERT_TARGET and batch_idx == secrets.randbelow(N_BATCHES):
-                pos = secrets.randbelow(BATCH_SIZE)
-                batch[pos] = target_password
-                print(f"Inserted target at CPU batch {batch_idx} pos {pos}")
+    for batch_idx in range(N_BATCHES):
+        batch = [gen_candidate(L) for _ in range(BATCH_SIZE)]
+        if INSERT_TARGET and batch_idx == secrets.randbelow(N_BATCHES):
+            pos = secrets.randbelow(BATCH_SIZE)
+            batch[pos] = target_password
+            print(f"Inserted target at CPU Sequential batch {batch_idx} pos {pos}")
 
-            t0 = time.perf_counter()
-            hashes = pool.map(compute_hash, batch)
-            t1 = time.perf_counter()
-            timings.append(t1 - t0)
-
-            for i, h in enumerate(hashes):
-                total += 1
-                if h == target_hash:
-                    found = True
-                    found_info = (batch_idx, i)
-                    break
-
-            print(f"[CPU] batch {batch_idx} done: time={(t1-t0):.4f}s (cumulative {total})")
-            if found:
-                print("FOUND on CPU:", found_info)
+        t0 = time.perf_counter()
+        for i, p in enumerate(batch):
+            h = hashlib.pbkdf2_hmac('sha256', p.encode(), salt, ITER, DKLEN)
+            total += 1
+            if h == target_hash:
+                found = True
+                found_info = (batch_idx, i)
                 break
+        t1 = time.perf_counter()
+        timings.append(t1 - t0)
+        print(f"[CPU Sequential] batch {batch_idx} done: time={(t1-t0):.4f}s (cumulative {total})")
+        if found:
+            print("FOUND on CPU Sequential:", found_info)
+            break
 
     avg = sum(timings)/len(timings) if timings else None
     exists = os.path.exists(OUT_CSV)
@@ -75,7 +67,7 @@ def run():
         if not exists:
             w.writerow(["timestamp","n_batches","batch_size","iterations","dklen","total_candidates","found","found_batch","found_pos","elapsed_avg_s","elapsed_total_s","target_password","target_hash_hex"])
         w.writerow([time.time(), N_BATCHES, BATCH_SIZE, ITER, DKLEN, total, bool(found), found_info[0] if found else -1, found_info[1] if found else -1, avg, sum(timings), target_password, target_hash.hex()])
-    print("CPU run complete. Saved to", OUT_CSV)
+    print("CPU Sequential run complete. Saved to", OUT_CSV)
 
 if __name__ == "__main__":
     run()

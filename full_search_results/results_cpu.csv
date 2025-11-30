@@ -1,0 +1,3 @@
+timestamp,n_batches,batch_size,iterations,dklen,total_candidates,found,found_batch,found_pos,elapsed_avg_s,elapsed_total_s,target_password,target_hash_hex
+1764529095.6904078,16,8192,5000,32,131072,False,-1,-1,1.6168919749979977,25.870271599967964,K:`fPs&w9@,a43b5e22a4ef91d5d6b7db9d86b04385bc76eccb1b2c9b357cfdcb2bdf7a0ed0
+1764530210.7483664,16,8192,5000,32,131072,False,-1,-1,1.822259650005435,29.15615440008696,"'nX0P-A=igP3,pH",38165e006962cd32e17bddcd774792ae6fb347f4672b3461a68ce8737c76d79c

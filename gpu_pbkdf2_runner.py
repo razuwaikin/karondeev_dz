@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# gpu_pbkdf2_runner.py
 import json, os, time, csv, sys, math
 import numpy as np
 import cupy as cp
@@ -9,7 +7,6 @@ import hashlib
 CFG_FNAME = "config.json"
 OUT_CSV = "results_gpu.csv"
 
-# --- load config ---
 with open(CFG_FNAME, "r") as f:
     cfg = json.load(f)
 
@@ -21,23 +18,18 @@ DKLEN = int(cfg.get("dklen", 32))
 TPB = int(cfg.get("gpu_threads_per_block", 256))
 INSERT_TARGET = bool(cfg.get("insert_target_in_batch", True))
 
-# salt may be hex string
 salt = bytes.fromhex(cfg.get("salt_hex")) if cfg.get("salt_hex") else secrets.token_bytes(12)
 
-# target password
 if cfg.get("target_password"):
     target_password = cfg.get("target_password")
 else:
-    # generate random printable ascii password of length L
     import string
-    CHARS = string.printable[:-6]  # remove whitespace control at end; this yields 95 printable typical
+    CHARS = string.printable[:-6]
     target_password = ''.join(secrets.choice(CHARS) for _ in range(L))
     print("Generated target password:", target_password)
 
 target_hash = hashlib.pbkdf2_hmac("sha256", target_password.encode(), salt, ITER, DKLEN)
 print("Target hash (hex):", target_hash.hex())
-
-# CUDA kernel with SHA256 single-block + HMAC + PBKDF2 loop
 cuda_source = r'''
 #include <stdint.h>
 
@@ -163,14 +155,12 @@ void pbkdf2_kernel(const uint8_t *passwords, int pass_len,
 }
 '''
 
-# compile raw module
 print("Compiling CUDA kernel (this may take a few seconds)...")
 module = cp.RawModule(code=cuda_source, options=('-std=c++11',), name_expressions=('pbkdf2_kernel',))
 pbkdf2_kernel = module.get_function('pbkdf2_kernel')
 
-# helper: create batch of candidate passwords (random printable)
 import string
-CHARS = string.printable[:-6]  # ~95 printable
+CHARS = string.printable[:-6]
 def gen_batch(batch_size, length):
     arr = np.zeros((batch_size, length), dtype=np.uint8)
     for i in range(batch_size):
@@ -178,51 +168,41 @@ def gen_batch(batch_size, length):
         arr[i,:] = np.frombuffer(s.encode('latin1'), dtype=np.uint8)
     return arr
 
-# prepare salt array: for simplicity use same salt for all tasks (or random per task)
 def gen_salts(batch_size):
     return np.tile(np.frombuffer(salt, dtype=np.uint8), (batch_size,1))
 
-# prepare target insertion
 def insert_target_into_batch(batch_np, target_bytes):
     i = secrets.randbelow(batch_np.shape[0])
     b = np.frombuffer(target_bytes, dtype=np.uint8)
-    # if target shorter/longer than L, pad/truncate
     if b.size < batch_np.shape[1]:
         tmp = np.zeros(batch_np.shape[1], dtype=np.uint8)
         tmp[:b.size] = b
         b = tmp
     batch_np[i,:] = b[:batch_np.shape[1]]
     return i
-
-# warmup and run multiple batches until found or n_batches exhausted
 def run():
     found = False
     total_candidate_count = 0
     timings = []
     found_info = None
 
-    # allocate arrays on GPU once (we will reupload per batch)
     for batch_index in range(N_BATCHES):
-        # create batch
         batch_np = gen_batch(BATCH_SIZE, L)
-        if INSERT_TARGET and batch_index == secrets.randbelow(N_BATCHES):  # insert in random batch among n_batches
+        if INSERT_TARGET and batch_index == secrets.randbelow(N_BATCHES):
             pos = insert_target_into_batch(batch_np, target_password.encode())
             print(f"Inserted target into batch {batch_index} at pos {pos}")
         salts_np = gen_salts(BATCH_SIZE)
 
-        # move to GPU
         d_passwords = cp.asarray(batch_np)
         d_salts = cp.asarray(salts_np)
         d_out = cp.empty((BATCH_SIZE, DKLEN), dtype=cp.uint8)
 
         blocks = (BATCH_SIZE + TPB - 1) // TPB
 
-        # warmup small run for first batch
         if batch_index == 0:
             pbkdf2_kernel((blocks,), (TPB,), (d_passwords, np.int32(L), d_salts, np.int32(len(salt)), np.int32(1), d_out, np.int32(DKLEN), np.int32(BATCH_SIZE)))
             cp.cuda.runtime.deviceSynchronize()
 
-        # timed run
         start = cp.cuda.Event()
         end = cp.cuda.Event()
         start.record()
@@ -233,10 +213,7 @@ def run():
         elapsed_s = float(elapsed_ms) / 1000.0
         timings.append(elapsed_s)
 
-        # copy back output and compare
         out_np = d_out.get()
-        # compare to target_hash
-        # Note: if target had trailing zeros due to fixed width, compare with same shape
         for i in range(BATCH_SIZE):
             if bytes(out_np[i,:]) == target_hash:
                 found = True
@@ -250,7 +227,6 @@ def run():
             break
 
     avg_time = sum(timings)/len(timings) if timings else None
-    # save results
     header = ["timestamp","n_batches","batch_size","iterations","dklen","total_candidates","found","found_batch","found_pos","elapsed_avg_s","elapsed_total_s","target_password","target_hash_hex"]
     exists = os.path.exists(OUT_CSV)
     with open(OUT_CSV, "a", newline="") as f:
