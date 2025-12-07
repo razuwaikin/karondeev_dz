@@ -19,16 +19,24 @@ Key parameters:
 
 ## Hardware Used
 
-### CPU (Sequential)
+### System 1 - CPU Testing
 - **Processor**: 12th Gen Intel(R) Core(TM) i9-12900KF
 - **Cores/Threads**: 16 cores / 24 threads
-- **Architecture**: Sequential processing using single thread
-
-### GPU (Parallel)
 - **Graphics Card**: NVIDIA GeForce RTX 5070
-- **VRAM**: 12 GB
-- **CUDA Version**: 13.0
+- **RAM**: 64 GB DDR5
+- **Architecture**: Sequential processing using single thread
+- **Test Configuration**: Sequential CPU processing only
+
+### System 2 - GPU Testing  
+- **Processor**: AMD Ryzen 7 7735H
+- **Graphics Card**: NVIDIA GeForce GTX 4060 Laptop
+- **RAM**: 32 GB DDR5
+- **VRAM**: 8 GB
+- **CUDA Version**: 12.2
 - **Architecture**: Parallel processing using CUDA threads (256 threads per block)
+- **Test Configuration**: GPU-accelerated PBKDF2 computation
+
+**Hardware Difference**: The first system uses a powerful modern CPU (i9-12900KF) for sequential testing, while the second system uses a mid-range GPU (GTX 1060) for parallel acceleration testing.
 
 ## Computation Stages and Timing Breakdown
 
@@ -110,6 +118,12 @@ Note: GPU results not available due to CUDA toolkit installation requirement on 
 ```bash
 pip install numpy pandas matplotlib cupy
 ```
+
+**Installed versions:**
+- CuPy: 13.6.0
+- CUDA: 12.2
+- Python: 3.13
+- GPU: NVIDIA GTX 4060
 
 ### Running the Benchmark
 
