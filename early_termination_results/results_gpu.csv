@@ -1,0 +1,2 @@
+timestamp,n_batches,batch_size,iterations,dklen,total_candidates,found,found_batch,found_pos,elapsed_avg_s,elapsed_total_s,target_password,target_hash_hex
+1765032807.9495935,16,8192,5000,32,131072,False,-1,-1,3.8247652375000314,61.1962438000005,H!#rq/1Jurt#nTB,c3d269cca10261a06d07c0eb7464da1b3bb69e5ad5190917f1f0f7464f87763c

@@ -1,0 +1,2 @@
+timestamp,n_batches,batch_size,iterations,dklen,total_candidates,found,found_batch,found_pos,elapsed_avg_s,elapsed_total_s,target_password,target_hash_hex
+1765032735.3039117,16,8192,5000,32,16384,True,1,397,3.653505199999927,7.307010399999854,"I+Z*[aT5YN;Yt,(",acc3a8780f1f81a5ff6b6a84e81beed71f58ffe24546f88e3e4bb40e6687b798

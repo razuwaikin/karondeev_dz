@@ -1,11 +1,16 @@
-import json, os, time, csv, sys, math
+import json, os, time, csv, sys, math, argparse
 import numpy as np
 import cupy as cp
 import secrets
 import hashlib
 
-CFG_FNAME = "config.json"
-OUT_CSV = "results_gpu.csv"
+parser = argparse.ArgumentParser()
+parser.add_argument('--config', default='config.json', help='Path to config file')
+parser.add_argument('--output', default='results_gpu.csv', help='Path to output CSV')
+args = parser.parse_args()
+
+CFG_FNAME = args.config
+OUT_CSV = args.output
 
 with open(CFG_FNAME, "r") as f:
     cfg = json.load(f)
@@ -31,7 +36,10 @@ else:
 target_hash = hashlib.pbkdf2_hmac("sha256", target_password.encode(), salt, ITER, DKLEN)
 print("Target hash (hex):", target_hash.hex())
 cuda_source = r'''
-#include <stdint.h>
+// Define stdint types for CUDA
+typedef unsigned char uint8_t;
+typedef unsigned int uint32_t;
+typedef unsigned long long uint64_t;
 
 // helpers
 #define ROTR(x,n) (((x) >> (n)) | ((x) << (32-(n))))
@@ -53,14 +61,14 @@ __device__ void sha256_transform(const uint8_t *chunk, uint32_t H[8]) {
     }
     uint32_t a = H[0], b = H[1], c = H[2], d = H[3], e = H[4], f = H[5], g = H[6], h = H[7];
     const uint32_t K[64] = {
-        0x428a2f98ul,0x71374491ul,0xb5c0fbcful,0xe9b5dba5ul,0x3956c25bul,0x59f111f1ul,0x923f82a4ul,0xab1c5ed5ul,
-        0xd807aa98ul,0x12835b01ul,0x243185beul,0x550c7dc3ul,0x72be5d74ul,0x80deb1feul,0x9bdc06a7ul,0xc19bf174ul,
-        0xe49b69c1ul,0xefbe4786ul,0x0fc19dc6ul,0x240ca1ccul,0x2de92c6ful,0x4a7484aal,0x5cb0a9dcul,0x76f988daul,
-        0x983e5152ul,0xa831c66dul,0xb00327c8ul,0xbf597fc7ul,0xc6e00bf3ul,0xd5a79147ul,0x06ca6351ul,0x14292967ul,
-        0x27b70a85ul,0x2e1b2138ul,0x4d2c6dfcul,0x53380d13ul,0x650a7354ul,0x766a0abbul,0x81c2c92eul,0x92722c85ul,
-        0xa2bfe8a1ul,0xa81a664bul,0xc24b8b70ul,0xc76c51a3ul,0xd192e819ul,0xd6990624ul,0xf40e3585ul,0x106aa070ul,
-        0x19a4c116ul,0x1e376c08ul,0x2748774cul,0x34b0bcb5ul,0x391c0cb3ul,0x4ed8aa4aul,0x5b9cca4ful,0x682e6ff3ul,
-        0x748f82eeul,0x78a5636ful,0x84c87814ul,0x8cc70208ul,0x90befffamul,0xa4506cebul,0xbef9a3f7ul,0xc67178f2ul
+        0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+        0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+        0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+        0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+        0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+        0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+        0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+        0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
     };
     #pragma unroll
     for (int i = 0; i < 64; ++i) {
@@ -80,8 +88,8 @@ __device__ void sha256_single_block(const uint8_t *msg, int msglen, uint8_t out3
     uint64_t bitlen = ((uint64_t)msglen) * 8;
     for (int j = 0; j < 8; ++j) block[63 - j] = (uint8_t)(bitlen >> (8*j));
     uint32_t H[8] = {
-        0x6a09e667ul,0xbb67ae85ul,0x3c6ef372ul,0xa54ff53aul,
-        0x510e527ful,0x9b05688cul,0x1f83d9abul,0x5be0cd19ul
+        0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,
+        0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19
     };
     sha256_transform(block, H);
     for (int k = 0; k < 8; ++k) {
@@ -156,7 +164,11 @@ void pbkdf2_kernel(const uint8_t *passwords, int pass_len,
 '''
 
 print("Compiling CUDA kernel (this may take a few seconds)...")
-module = cp.RawModule(code=cuda_source, options=('-std=c++11',), name_expressions=('pbkdf2_kernel',))
+module = cp.RawModule(
+    code=cuda_source,
+    options=('-std=c++11',),
+    name_expressions=('pbkdf2_kernel',)
+)
 pbkdf2_kernel = module.get_function('pbkdf2_kernel')
 
 import string

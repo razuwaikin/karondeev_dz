@@ -1,0 +1,2 @@
+timestamp,n_batches,batch_size,iterations,dklen,total_candidates,found,found_batch,found_pos,elapsed_avg_s,elapsed_total_s,target_password,target_hash_hex
+1765032844.4065719,16,8192,5000,32,40960,True,4,6324,4.447462039999982,22.23731019999991,",ubm!Y5kFR{qJRI",d8f2bef433430c1a5f0a5918307fff2850a1b7914384f024a7a52b37a95b138d
