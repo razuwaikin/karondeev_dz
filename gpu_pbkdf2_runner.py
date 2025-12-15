@@ -205,9 +205,11 @@ def run():
             print(f"Inserted target into batch {batch_index} at pos {pos}")
         salts_np = gen_salts(BATCH_SIZE)
 
+        transfer_start = time.perf_counter()
         d_passwords = cp.asarray(batch_np)
         d_salts = cp.asarray(salts_np)
         d_out = cp.empty((BATCH_SIZE, DKLEN), dtype=cp.uint8)
+        transfer_to_gpu = time.perf_counter() - transfer_start
 
         blocks = (BATCH_SIZE + TPB - 1) // TPB
 
@@ -222,10 +224,14 @@ def run():
         end.record()
         end.synchronize()
         elapsed_ms = cp.cuda.get_elapsed_time(start, end)
-        elapsed_s = float(elapsed_ms) / 1000.0
-        timings.append(elapsed_s)
+        kernel_time = float(elapsed_ms) / 1000.0
 
+        transfer_from_start = time.perf_counter()
         out_np = d_out.get()
+        transfer_from_gpu = time.perf_counter() - transfer_from_start
+
+        total_batch_time = transfer_to_gpu + kernel_time + transfer_from_gpu
+        timings.append(total_batch_time)
         for i in range(BATCH_SIZE):
             if bytes(out_np[i,:]) == target_hash:
                 found = True
@@ -233,20 +239,27 @@ def run():
                 break
 
         total_candidate_count += BATCH_SIZE
-        print(f"[GPU] batch {batch_index} done: time={elapsed_s:.4f}s (cumulative candidates={total_candidate_count})")
+        print(f"[GPU] batch {batch_index} done: time={total_batch_time:.4f}s (cumulative candidates={total_candidate_count})")
         if found:
             print("FOUND on GPU in batch", found_info)
             break
 
-    avg_time = sum(timings)/len(timings) if timings else None
-    header = ["timestamp","n_batches","batch_size","iterations","dklen","total_candidates","found","found_batch","found_pos","elapsed_avg_s","elapsed_total_s","target_password","target_hash_hex"]
+    total_time = sum(timings)
+    avg_time = total_time/len(timings) if timings else None
+    time_per_password = total_time / total_candidate_count if total_candidate_count > 0 else None
+    passwords_per_second = total_candidate_count / total_time if total_time > 0 else None
+    operation_time = total_time
+    sending_time = 0.0
+
+    header = ["timestamp","n_batches","batch_size","iterations","dklen","total_candidates","found","found_batch","found_pos","elapsed_avg_s","elapsed_total_s","time_per_password","passwords_per_second","operation_time_s","sending_time_s","target_password","target_hash_hex"]
     exists = os.path.exists(OUT_CSV)
     with open(OUT_CSV, "a", newline="") as f:
         w = csv.writer(f)
         if not exists:
             w.writerow(header)
         w.writerow([time.time(), N_BATCHES, BATCH_SIZE, ITER, DKLEN, total_candidate_count, bool(found),
-                    found_info[0] if found else -1, found_info[1] if found else -1, avg_time, sum(timings),
+                    found_info[0] if found else -1, found_info[1] if found else -1, avg_time, total_time,
+                    time_per_password, passwords_per_second, operation_time, sending_time,
                     target_password, target_hash.hex()])
     print("GPU run complete. Saved to", OUT_CSV)
 

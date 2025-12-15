@@ -23,14 +23,18 @@ for folder, label in zip(folders, labels):
         par_candidates = par_df.iloc[-1]['total_candidates']
         gpu_candidates = gpu_df.iloc[-1]['total_candidates']
 
-        seq_speed = seq_candidates / seq_time if seq_time > 0 else 0
-        par_speed = par_candidates / par_time if par_time > 0 else 0
-        gpu_speed = gpu_candidates / gpu_time if gpu_time > 0 else 0
+        seq_speed = seq_df.iloc[-1].get('passwords_per_second', seq_candidates / seq_time if seq_time > 0 else 0)
+        par_speed = par_df.iloc[-1].get('passwords_per_second', par_candidates / par_time if par_time > 0 else 0)
+        gpu_speed = gpu_df.iloc[-1].get('passwords_per_second', gpu_candidates / gpu_time if gpu_time > 0 else 0)
+
+        seq_time_per_pass = seq_df.iloc[-1].get('time_per_password', seq_time / seq_candidates if seq_candidates > 0 else 0)
+        par_time_per_pass = par_df.iloc[-1].get('time_per_password', par_time / par_candidates if par_candidates > 0 else 0)
+        gpu_time_per_pass = gpu_df.iloc[-1].get('time_per_password', gpu_time / gpu_candidates if gpu_candidates > 0 else 0)
 
         acceleration_cpu = seq_time / par_time if par_time > 0 else 0
         efficiency_cpu = acceleration_cpu / 8
         acceleration_gpu = seq_time / gpu_time if gpu_time > 0 else 0
-        efficiency_gpu = acceleration_gpu / 256  # approximate threads per block
+        efficiency_gpu = acceleration_gpu / 256
 
         results.append({
             'label': label,
@@ -40,6 +44,9 @@ for folder, label in zip(folders, labels):
             'seq_speed': seq_speed,
             'par_speed': par_speed,
             'gpu_speed': gpu_speed,
+            'seq_time_per_pass': seq_time_per_pass,
+            'par_time_per_pass': par_time_per_pass,
+            'gpu_time_per_pass': gpu_time_per_pass,
             'acceleration_cpu': acceleration_cpu,
             'efficiency_cpu': efficiency_cpu,
             'acceleration_gpu': acceleration_gpu,
@@ -131,10 +138,10 @@ print("Saved comprehensive_comparison.png")
 print("\n" + "="*100)
 print("COMPREHENSIVE BENCHMARK SUMMARY")
 print("="*100)
-print(f"{'Scenario':<20} {'Seq Time':<10} {'Par Time':<10} {'GPU Time':<10} {'Seq Speed':<12} {'Par Speed':<12} {'GPU Speed':<12} {'CPU Accel':<10} {'GPU Accel':<10} {'CPU Eff':<8} {'GPU Eff':<8}")
-print("-"*100)
+print(f"{'Scenario':<20} {'Seq Time':<10} {'Par Time':<10} {'GPU Time':<10} {'Seq Speed':<12} {'Par Speed':<12} {'GPU Speed':<12} {'Seq T/P':<10} {'Par T/P':<10} {'GPU T/P':<10} {'CPU Accel':<10} {'GPU Accel':<10} {'CPU Eff':<8} {'GPU Eff':<8}")
+print("-"*140)
 for r in results:
-    print(f"{r['label']:<20} {r['seq_time']:<10.2f} {r['par_time']:<10.2f} {r['gpu_time']:<10.2f} {r['seq_speed']:<12.0f} {r['par_speed']:<12.0f} {r['gpu_speed']:<12.0f} {r['acceleration_cpu']:<10.2f} {r['acceleration_gpu']:<10.2f} {r['efficiency_cpu']:<8.3f} {r['efficiency_gpu']:<8.3f}")
+    print(f"{r['label']:<20} {r['seq_time']:<10.2f} {r['par_time']:<10.2f} {r['gpu_time']:<10.2f} {r['seq_speed']:<12.0f} {r['par_speed']:<12.0f} {r['gpu_speed']:<12.0f} {r['seq_time_per_pass']:<10.6f} {r['par_time_per_pass']:<10.6f} {r['gpu_time_per_pass']:<10.6f} {r['acceleration_cpu']:<10.2f} {r['acceleration_gpu']:<10.2f} {r['efficiency_cpu']:<8.3f} {r['efficiency_gpu']:<8.3f}")
 print("="*100)
 
 avg_seq_time = sum(r['seq_time'] for r in results) / len(results)
@@ -159,4 +166,12 @@ print(f"Average CPU Acceleration: {avg_acceleration_cpu:.2f}x")
 print(f"Average GPU Acceleration: {avg_acceleration_gpu:.2f}x")
 print(f"Average CPU Efficiency: {avg_efficiency_cpu:.3f}")
 print(f"Average GPU Efficiency: {avg_efficiency_gpu:.3f}")
+
+print("\nHASHCAT COMPARISON (estimated for PBKDF2-SHA256 with 5000 iterations):")
+hashcat_speed = 2000000  # ~2M hashes/sec on modern GPU
+hashcat_time_per_pass = 1.0 / hashcat_speed
+print(f"Estimated Hashcat speed: {hashcat_speed:,.0f} pass/sec")
+print(f"Estimated Hashcat time per password: {hashcat_time_per_pass:.8f} seconds")
+print(f"Hashcat speedup vs average Sequential CPU: {avg_seq_speed / hashcat_speed:.1f}x")
+print(f"Hashcat speedup vs average GPU: {avg_gpu_speed / hashcat_speed:.1f}x")
 print("="*100)

@@ -68,13 +68,21 @@ def run():
                 print("FOUND on CPU:", found_info)
                 break
 
-    avg = sum(timings)/len(timings) if timings else None
+    total_time = sum(timings)
+    avg = total_time/len(timings) if timings else None
+    time_per_password = total_time / total if total > 0 else None
+    passwords_per_second = total / total_time if total_time > 0 else None
+    # For CPU parallel, timing includes both computation and inter-process communication
+    # For simplicity, we'll consider all time as operation time for now
+    operation_time = total_time
+    sending_time = 0.0
+
     exists = os.path.exists(OUT_CSV)
     with open(OUT_CSV, "a", newline="") as f:
         w = csv.writer(f)
         if not exists:
-            w.writerow(["timestamp","n_batches","batch_size","iterations","dklen","total_candidates","found","found_batch","found_pos","elapsed_avg_s","elapsed_total_s","target_password","target_hash_hex"])
-        w.writerow([time.time(), N_BATCHES, BATCH_SIZE, ITER, DKLEN, total, bool(found), found_info[0] if found else -1, found_info[1] if found else -1, avg, sum(timings), target_password, target_hash.hex()])
+            w.writerow(["timestamp","n_batches","batch_size","iterations","dklen","total_candidates","found","found_batch","found_pos","elapsed_avg_s","elapsed_total_s","time_per_password","passwords_per_second","operation_time_s","sending_time_s","target_password","target_hash_hex"])
+        w.writerow([time.time(), N_BATCHES, BATCH_SIZE, ITER, DKLEN, total, bool(found), found_info[0] if found else -1, found_info[1] if found else -1, avg, total_time, time_per_password, passwords_per_second, operation_time, sending_time, target_password, target_hash.hex()])
     print("CPU run complete. Saved to", OUT_CSV)
 
 if __name__ == "__main__":

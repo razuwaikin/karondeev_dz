@@ -189,7 +189,7 @@ pip install numpy pandas matplotlib cupy
 - Pandas
 - Matplotlib
 - CuPy (for GPU support)
-- CUDA Toolkit 13.0+
+- CUDA Toolkit 12.2
 
 ## License
 This is educational homework code for performance comparison purposes.

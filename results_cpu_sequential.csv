@@ -1,4 +1,2 @@
-timestamp,n_batches,batch_size,iterations,dklen,total_candidates,found,found_batch,found_pos,elapsed_avg_s,elapsed_total_s,target_password,target_hash_hex
-1764527517.430223,16,8192,5000,32,11557,True,1,3364,8.230364099959843,16.460728199919686,c-SA^Bufc#,9181b6f951d8fe3bc9439a61b9b7a225feb8024e34610f7be346d36d6f3bbdeb
-1764527530.8842545,16,8192,5000,32,9250,True,1,1057,6.637075700011337,13.274151400022674,",Pk!'?""Z/b",6e8b74923ffed248eb73cc12618b203417ffa4c7929c8ce5cbff4d08d9aab5b0
-1764527595.0368903,16,8192,5000,32,44723,True,5,3762,10.635960599999331,63.81576359999599,JSd=YG@I4o,3b1f4deb26904e5ad3ac08f65f9b092021c0bb8a4b53961be45156a75b0104ce
+timestamp,n_batches,batch_size,iterations,dklen,total_candidates,found,found_batch,found_pos,elapsed_avg_s,elapsed_total_s,time_per_password,passwords_per_second,operation_time_s,sending_time_s,target_password,target_hash_hex
+1765812015.7825983,64,32768,5000,32,904254,True,27,19517,70.72005881428673,1980.1616468000284,0.002189829015741184,456.6566580366246,1980.1616468000284,0.0,",n%;TcPaKblBH2R",22dcb548d208a46a5e3b7ebca19a34e6eaeb9a16a1cdac5dbc28244a956eaf84
