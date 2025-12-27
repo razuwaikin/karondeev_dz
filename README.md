@@ -195,15 +195,17 @@ pip install numpy pandas matplotlib cupy
 
 Hashcat PBKDF2-HMAC-SHA256 benchmark (mode 10900) for 999 iterations:
 
-- Device #01 (NVIDIA GeForce RTX 4060 Laptop GPU): 150.7 kH/s
-- Device #03 (AMD Radeon(TM) Graphics): 54.1 kH/s
-- Total: 204.8 kH/s
+- Device #01 (NVIDIA GeForce RTX 4060 Laptop GPU): 560.7 kH/s
+- Device #03 (AMD Radeon(TM) Graphics): 111.7 kH/s
+- Total: 764.5 kH/s
 
-Scaled for 5000 iterations: ~40.9 kH/s
+Scaled for 5000 iterations: ~152.75 kH/s
 
 GPU implementation: 120.4 kH/s
+HashCat implementation: 152.75
 
 The custom GPU implementation outperforms hashcat's optimized kernel for this PBKDF2 configuration.
+Hashcat is 1.27x faster.
 
 ## License
 This is educational homework code for performance comparison purposes.
